@@ -1,0 +1,6 @@
+{
+  "name": "Quiz Platform",
+  "description": "A production-grade foundation for a Quiz Platform with full-stack architecture, including AI quiz generation, analytics, and leadership boards.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
