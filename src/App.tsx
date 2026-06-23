@@ -18,6 +18,8 @@ import { QuizDetailsPage } from "./features/quizzes/pages/QuizDetailsPage.js";
 import { TakeQuizPage } from "./features/quizzes/pages/TakeQuizPage.js";
 import { QuizResultsPage } from "./features/quizzes/pages/QuizResultsPage.js";
 import { AttemptHistoryPage } from "./features/quizzes/pages/AttemptHistoryPage.js";
+import { LeaderboardPage } from "./features/quizzes/pages/LeaderboardPage.js";
+import { AnalyticsPage } from "./features/quizzes/pages/AnalyticsPage.js";
 import { UserRole } from "./types.js";
 
 export default function App() {
@@ -96,6 +98,26 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <AttemptHistoryPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Global Leaderboard Route */}
+            <Route
+              path="/leaderboard"
+              element={
+                <ProtectedRoute>
+                  <LeaderboardPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Analytics Dashboard Route */}
+            <Route
+              path="/analytics"
+              element={
+                <ProtectedRoute>
+                  <AnalyticsPage />
                 </ProtectedRoute>
               }
             />

@@ -24,6 +24,8 @@ import {
   Clock,
   HelpCircle,
   TrendingUp,
+  Trophy,
+  BarChart2,
 } from "lucide-react";
 import { UserRole, QuizDifficulty } from "../../../types.js";
 
@@ -132,8 +134,24 @@ export const DashboardPage: React.FC = () => {
                   Account Level: <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">{user?.role}</span> • Member since {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : "Today"}
                 </p>
               </div>
-              {isAdmin && (
-                <div className="mt-4 md:mt-0 flex gap-3">
+              <div className="mt-4 md:mt-0 flex flex-wrap gap-3">
+                <Link
+                  to="/leaderboard"
+                  id="view-leaderboard-btn"
+                  className="flex items-center space-x-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 px-5 py-3 text-sm font-semibold text-gray-700 transition dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                >
+                  <Trophy className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                  <span>Leaderboard</span>
+                </Link>
+                <Link
+                  to="/analytics"
+                  id="view-analytics-btn"
+                  className="flex items-center space-x-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 px-5 py-3 text-sm font-semibold text-gray-700 transition dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                >
+                  <BarChart2 className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                  <span>Analytics</span>
+                </Link>
+                {isAdmin && (
                   <Link
                     to="/quizzes/create"
                     id="create-quiz-btn"
@@ -142,8 +160,8 @@ export const DashboardPage: React.FC = () => {
                     <Plus className="h-4 w-4" />
                     <span>Create Quiz</span>
                   </Link>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
 

@@ -3,6 +3,7 @@ import { ResponseHandler } from "../utils/responseHandler.js";
 import { authRouter } from "./auth.routes.js";
 import { quizRouter } from "./quiz.routes.js";
 import { attemptRouter } from "./attempt.routes.js";
+import { analyticsRouter } from "./analytics.routes.js";
 
 export const apiRouter = Router();
 
@@ -18,6 +19,7 @@ apiRouter.get("/health", (req, res) => {
 apiRouter.use("/auth", authRouter);
 apiRouter.use("/quizzes", quizRouter);
 apiRouter.use("/attempts", attemptRouter);
+apiRouter.use("/analytics", analyticsRouter);
 
 // Admin-only metrics health check
 apiRouter.get("/admin/ping", (req, res) => {
