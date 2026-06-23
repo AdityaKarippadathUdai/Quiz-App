@@ -6,6 +6,7 @@ import {
   useTogglePublishQuizMutation,
   useDeleteQuizMutation,
 } from "../../quizzes/services/quizApiSlice.js";
+import { useGetUserAttemptsQuery } from "../../quizzes/services/attemptApiSlice.js";
 import {
   LogOut,
   Award,
@@ -47,11 +48,16 @@ export const DashboardPage: React.FC = () => {
   const [togglePublish, { isLoading: isPublishing }] = useTogglePublishQuizMutation();
   const [deleteQuiz, { isLoading: isDeleting }] = useDeleteQuizMutation();
 
+  const isAdmin = user?.role === UserRole.ADMIN;
+
+  const { data: attemptsResponse } = useGetUserAttemptsQuery(undefined, {
+    skip: isAdmin,
+  });
+  const attempts = attemptsResponse?.data || [];
+
   const quizzes = quizzesResponse?.data || [];
   const totalQuizzes = quizzesResponse?.meta?.total || 0;
   const totalPages = Math.ceil(totalQuizzes / 12);
-
-  const isAdmin = user?.role === UserRole.ADMIN;
 
   const handleTogglePublish = async (id: string, currentStatus: boolean) => {
     try {
@@ -324,7 +330,7 @@ export const DashboardPage: React.FC = () => {
                       </div>
                     ) : (
                       <button
-                        onClick={() => alert("Quiz gameplay integration is coming soon in the next update module!")}
+                        onClick={() => navigate(`/quizzes/details/${quiz._id}`)}
                         className="rounded-lg bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
                       >
                         Start Quiz
@@ -356,6 +362,78 @@ export const DashboardPage: React.FC = () => {
               >
                 Next
               </button>
+            </div>
+          )}
+
+          {/* Assessment Activity History */}
+          {!isAdmin && attempts.length > 0 && (
+            <div className="mt-12 space-y-6">
+              <div className="flex items-center space-x-2">
+                <TrendingUp className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                <h2 className="font-sans text-xl font-bold tracking-tight">Your Recent Assessment History</h2>
+              </div>
+
+              <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+                <div className="divide-y divide-gray-100 dark:divide-zinc-800">
+                  {attempts.map((att: any) => {
+                    const quizTitle = typeof att.quiz === "object" ? att.quiz?.title : "Quiz Assessment";
+                    const quizCategory = typeof att.quiz === "object" ? att.quiz?.category : "General";
+                    const isCompleted = att.status === "COMPLETED";
+
+                    return (
+                      <div
+                        key={att._id}
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-6 gap-4 hover:bg-gray-50/50 dark:hover:bg-zinc-800/20 transition"
+                      >
+                        <div className="space-y-1">
+                          <span className="font-mono text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded dark:bg-indigo-950/40 dark:text-indigo-400 uppercase">
+                            {quizCategory}
+                          </span>
+                          <h3 className="font-sans text-base font-bold text-gray-900 dark:text-white mt-1">
+                            {quizTitle}
+                          </h3>
+                          <p className="text-xs text-gray-400">
+                            Attempted on {new Date(att.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+                          <div className="text-right hidden sm:block">
+                            <p className="font-mono text-[10px] text-gray-400 font-bold uppercase tracking-wider">Status</p>
+                            <span className={`font-mono text-xs font-bold ${isCompleted ? "text-green-600 dark:text-green-400" : "text-amber-500"}`}>
+                              {att.status}
+                            </span>
+                          </div>
+
+                          <div className="text-right min-w-[70px]">
+                            <p className="font-mono text-[10px] text-gray-400 font-bold uppercase tracking-wider">Score</p>
+                            <p className="font-sans text-sm font-extrabold text-gray-900 dark:text-white">
+                              {isCompleted ? `${att.score} / ${att.totalMarks}` : "In Progress"}
+                            </p>
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              if (isCompleted) {
+                                navigate(`/quizzes/result/${att._id}`);
+                              } else {
+                                navigate(`/quizzes/take/${att._id}`);
+                              }
+                            }}
+                            className={`rounded-xl px-4 py-2 text-xs font-bold transition shadow ${
+                              isCompleted
+                                ? "bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
+                                : "bg-amber-500 text-white hover:bg-amber-600 shadow-amber-500/10"
+                            }`}
+                          >
+                            {isCompleted ? "View Results" : "Resume"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
         </div>

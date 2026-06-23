@@ -61,3 +61,35 @@ export interface Quiz {
   updatedAt: string;
 }
 
+export enum AttemptStatus {
+  STARTED = "STARTED",
+  COMPLETED = "COMPLETED",
+}
+
+export interface Answer {
+  questionId: string;
+  selectedOption: string;
+  savedAt?: string;
+}
+
+export interface Attempt {
+  _id: string;
+  user: {
+    _id: string;
+    name: string;
+    email: string;
+  } | string;
+  quiz: Quiz | string;
+  answers: Answer[];
+  score: number;
+  correctAnswersCount: number;
+  incorrectAnswersCount: number;
+  totalMarks: number;
+  timeSpent: number; // in seconds
+  status: AttemptStatus;
+  startedAt: string;
+  completedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
