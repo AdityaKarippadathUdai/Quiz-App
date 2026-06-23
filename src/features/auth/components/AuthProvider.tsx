@@ -4,6 +4,7 @@ import { useRefreshMutation, useLogoutMutation } from "../services/authApiSlice.
 import { setCredentials, logOut } from "../store/authSlice.js";
 import { RootState } from "../../../store/index.js";
 import { User, ThemePreference } from "../../../types.js";
+import { useTheme } from "../../../context/ThemeContext.js";
 
 interface AuthContextType {
   user: User | null;
@@ -22,15 +23,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { user, token, isAuthenticated } = useSelector((state: RootState) => state.auth);
   const [isInitializing, setIsInitializing] = useState(true);
   
-  // Theme Management (load from user profile themePreference, localStorage, or system preference)
-  const [theme, setTheme] = useState<ThemePreference>(() => {
-    if (user?.themePreference) return user.themePreference;
-    const savedTheme = localStorage.getItem("theme");
-    if (savedTheme === ThemePreference.DARK || savedTheme === ThemePreference.LIGHT) {
-      return savedTheme;
-    }
-    return ThemePreference.LIGHT;
-  });
+  // Consume Theme preference from the unified Theme Management System
+  const { theme, setTheme, toggleTheme } = useTheme();
 
   const [refreshSession] = useRefreshMutation();
   const [logoutApi] = useLogoutMutation();
@@ -58,19 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     bootstrapAuth();
-  }, [dispatch, refreshSession]);
-
-  // Sync class state to document tag
-  useEffect(() => {
-    const root = window.document.documentElement;
-    root.classList.remove(ThemePreference.LIGHT, ThemePreference.DARK);
-    root.classList.add(theme);
-    localStorage.setItem("theme", theme);
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === ThemePreference.LIGHT ? ThemePreference.DARK : ThemePreference.LIGHT));
-  };
+  }, [dispatch, refreshSession, setTheme]);
 
   const logoutUser = async () => {
     try {

@@ -10,11 +10,12 @@ import { clientRegisterSchema, ClientRegisterInput } from "../validations/authVa
 import { useRegisterMutation } from "../services/authApiSlice.js";
 import { setCredentials } from "../store/authSlice.js";
 import { useAuth } from "../components/AuthProvider.js";
+import { ThemeToggle } from "../../../components/ThemeToggle.js";
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { toggleTheme, theme } = useAuth();
+  const { user } = useAuth();
   
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -54,13 +55,9 @@ export const RegisterPage: React.FC = () => {
   return (
     <div id="register-container" className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4 py-12 transition-colors duration-300 dark:bg-zinc-950 sm:px-6 lg:px-8">
       {/* Theme Toggle Button in top right */}
-      <button
-        onClick={toggleTheme}
-        id="theme-toggle"
-        className="absolute top-4 right-4 rounded-full p-2 text-gray-500 hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-zinc-900"
-      >
-        {theme === "light" ? "🌙" : "☀️"}
-      </button>
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
 
       <motion.div
         initial={{ opacity: 0, y: 15 }}

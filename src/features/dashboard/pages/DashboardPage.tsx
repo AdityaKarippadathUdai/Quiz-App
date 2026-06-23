@@ -30,9 +30,10 @@ import {
 } from "lucide-react";
 import { UserRole, QuizDifficulty } from "../../../types.js";
 import { AIQuizGeneratorModal } from "../../quizzes/components/AIQuizGeneratorModal.js";
+import { ThemeToggle } from "../../../components/ThemeToggle.js";
 
 export const DashboardPage: React.FC = () => {
-  const { user, logoutUser, toggleTheme, theme } = useAuth();
+  const { user, logoutUser } = useAuth();
   const navigate = useNavigate();
 
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
@@ -95,13 +96,7 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-4">
-            <button
-              onClick={toggleTheme}
-              id="dashboard-theme-toggle"
-              className="rounded-full p-2 text-gray-500 hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
-            >
-              {theme === "light" ? "🌙" : "☀️"}
-            </button>
+            <ThemeToggle />
             
             <div className="flex items-center space-x-3 border-l border-gray-200 pl-4 dark:border-zinc-800">
               <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400">

@@ -21,13 +21,15 @@ import { AttemptHistoryPage } from "./features/quizzes/pages/AttemptHistoryPage.
 import { LeaderboardPage } from "./features/quizzes/pages/LeaderboardPage.js";
 import { AnalyticsPage } from "./features/quizzes/pages/AnalyticsPage.js";
 import { QuizPreviewPage } from "./features/quizzes/pages/QuizPreviewPage.js";
+import { ThemeProvider } from "./context/ThemeContext.js";
 import { UserRole } from "./types.js";
 
 export default function App() {
   return (
     <Provider store={store}>
-      <AuthProvider>
-        <BrowserRouter>
+      <ThemeProvider>
+        <AuthProvider>
+          <BrowserRouter>
           <Routes>
             {/* Public Auth Routes */}
             <Route path="/login" element={<LoginPage />} />
@@ -138,7 +140,8 @@ export default function App() {
           </Routes>
         </BrowserRouter>
       </AuthProvider>
-    </Provider>
-  );
+    </ThemeProvider>
+  </Provider>
+);
 }
 

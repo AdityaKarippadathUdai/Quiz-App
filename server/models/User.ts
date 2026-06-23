@@ -9,6 +9,7 @@ export enum UserRole {
 export enum ThemePreference {
   LIGHT = "light",
   DARK = "dark",
+  SYSTEM = "system",
 }
 
 export interface IUser extends Document {
