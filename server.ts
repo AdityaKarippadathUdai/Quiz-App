@@ -1,9 +1,11 @@
 import dotenv from "dotenv";
 import express from "express";
 import path from "path";
+import { createServer } from "http";
 import app from "./server/app.js";
 import { connectDB, disconnectDB } from "./server/config/db.js";
 import { createServer as createViteServer } from "vite";
+import { initSocketServer } from "./server/utils/socket.js";
 
 // Load Environment Configuration
 dotenv.config();
@@ -30,12 +32,16 @@ async function startServer() {
     // Pass standard client routing & HMR down to Vite dev server
     app.use(vite.middlewares);
   } else {
-    console.log("[SYSTEM] Running in PRODUCTION mode. Serving pre-compiled distribution assets...");
+    console.log("[SYSTEM] Serving pre-compiled distribution assets...");
     
     const distPath = path.join(process.cwd(), "dist");
     
-    // Serve static files from compiled dist folder
-    app.use(express.static(distPath));
+    // Serve static files from compiled dist folder with optimal browser caching
+    app.use(express.static(distPath, {
+      maxAge: "1d",
+      etag: true,
+      lastModified: true
+    }));
     
     // Route any unhandled page request back to index.html for SPA route resolution
     app.get("*", (req, res) => {
@@ -43,8 +49,12 @@ async function startServer() {
     });
   }
 
+  // Create HTTP Server & attach Socket.IO
+  const httpServer = createServer(app);
+  initSocketServer(httpServer);
+
   // 3. Bind Listener to port 3000
-  const server = app.listen(PORT, HOST, () => {
+  const server = httpServer.listen(PORT, HOST, () => {
     console.log(`[SYSTEM] Core active at http://${HOST}:${PORT}`);
   });
 

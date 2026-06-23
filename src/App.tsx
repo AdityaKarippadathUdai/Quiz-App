@@ -22,6 +22,7 @@ import { LeaderboardPage } from "./features/quizzes/pages/LeaderboardPage.js";
 import { AnalyticsPage } from "./features/quizzes/pages/AnalyticsPage.js";
 import { QuizPreviewPage } from "./features/quizzes/pages/QuizPreviewPage.js";
 import { ThemeProvider } from "./context/ThemeContext.js";
+import { SocketProvider } from "./context/SocketContext.js";
 import { UserRole } from "./types.js";
 
 export default function App() {
@@ -29,8 +30,9 @@ export default function App() {
     <Provider store={store}>
       <ThemeProvider>
         <AuthProvider>
-          <BrowserRouter>
-          <Routes>
+          <SocketProvider>
+            <BrowserRouter>
+            <Routes>
             {/* Public Auth Routes */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
@@ -139,9 +141,10 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
-      </AuthProvider>
-    </ThemeProvider>
-  </Provider>
+      </SocketProvider>
+    </AuthProvider>
+  </ThemeProvider>
+</Provider>
 );
 }
 

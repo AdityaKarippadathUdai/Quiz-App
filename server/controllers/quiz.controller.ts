@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from "express";
 import { QuizService } from "../services/quiz.service.js";
 import { ResponseHandler } from "../utils/responseHandler.js";
 import { AppError } from "../middleware/errorMiddleware.js";
+import { getOrSetCache, invalidateCachePattern } from "../utils/redis.js";
+import { broadcastNotification } from "../utils/socket.js";
 
 export class QuizController {
   /**
@@ -14,6 +16,18 @@ export class QuizController {
       }
 
       const quiz = await QuizService.createQuiz(req.body, req.user.id);
+      
+      // Invalidate existing quizzes caches
+      await invalidateCachePattern("quizzes:*");
+
+      if (quiz.isPublished) {
+        broadcastNotification(
+          "New Quiz Alert! 🎯",
+          `"${quiz.title}" is now live! Attempt it now in the dashboard.`,
+          "success"
+        );
+      }
+
       ResponseHandler.created(res, "Quiz created successfully.", { quiz });
     } catch (error) {
       next(error);
@@ -31,6 +45,10 @@ export class QuizController {
 
       const { id } = req.params;
       const quiz = await QuizService.updateQuiz(id, req.body, req.user.id, req.user.role);
+
+      // Invalidate cache for quizzes and this specific quiz
+      await invalidateCachePattern("quizzes:*");
+      await invalidateCachePattern(`quiz:${id}`);
 
       ResponseHandler.success(res, "Quiz updated successfully.", { quiz });
     } catch (error) {
@@ -56,6 +74,18 @@ export class QuizController {
 
       const quiz = await QuizService.togglePublishStatus(id, isPublished, req.user.id, req.user.role);
       
+      // Invalidate cache for quizzes
+      await invalidateCachePattern("quizzes:*");
+      await invalidateCachePattern(`quiz:${id}`);
+
+      if (isPublished) {
+        broadcastNotification(
+          "New Quiz Published! 🚀",
+          `Challenge yourself with "${quiz.title}". Tap to start now!`,
+          "success"
+        );
+      }
+
       const message = isPublished ? "Quiz published successfully." : "Quiz unpublished successfully.";
       ResponseHandler.success(res, message, { quiz });
     } catch (error) {
@@ -75,6 +105,10 @@ export class QuizController {
       const { id } = req.params;
       await QuizService.deleteQuiz(id, req.user.id, req.user.role);
 
+      // Invalidate caches
+      await invalidateCachePattern("quizzes:*");
+      await invalidateCachePattern(`quiz:${id}`);
+
       ResponseHandler.success(res, "Quiz deleted successfully.");
     } catch (error) {
       next(error);
@@ -87,7 +121,11 @@ export class QuizController {
   static async getQuiz(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const quiz = await QuizService.getQuizById(id);
+      
+      // Use Redis caching for the quiz details
+      const quiz = await getOrSetCache(`quiz:${id}`, async () => {
+        return QuizService.getQuizById(id);
+      }, 600); // cache for 10 minutes
 
       // If the quiz isn't published yet and requester is not admin or the creator
       if (!quiz.isPublished) {
@@ -111,24 +149,29 @@ export class QuizController {
     try {
       const page = parseInt(req.query.page as string, 10) || 1;
       const limit = parseInt(req.query.limit as string, 10) || 10;
-      const category = req.query.category as string;
-      const difficulty = req.query.difficulty as string;
-      const search = req.query.search as string;
+      const category = req.query.category as string || "";
+      const difficulty = req.query.difficulty as string || "";
+      const search = req.query.search as string || "";
 
       // Regular players can only list published quizzes. Admins/Creators can see all.
       const showAll = req.user?.role === "ADMIN";
       const isPublished = showAll ? undefined : true;
 
-      const { quizzes, total } = await QuizService.listQuizzes(
-        { category, difficulty, isPublished, search },
-        page,
-        limit
-      );
+      const cacheKey = `quizzes:cat=${category}:diff=${difficulty}:pub=${isPublished !== undefined ? isPublished : "all"}:search=${search}:p=${page}:l=${limit}`;
 
-      ResponseHandler.success(res, "Quizzes list loaded successfully.", quizzes, 200, {
+      const cachedResult = await getOrSetCache(cacheKey, async () => {
+        const { quizzes, total } = await QuizService.listQuizzes(
+          { category, difficulty, isPublished, search },
+          page,
+          limit
+        );
+        return { quizzes, total };
+      }, 120); // Cache lists for 2 minutes
+
+      ResponseHandler.success(res, "Quizzes list loaded successfully.", cachedResult.quizzes, 200, {
         page,
         limit,
-        total,
+        total: cachedResult.total,
       });
     } catch (error) {
       next(error);

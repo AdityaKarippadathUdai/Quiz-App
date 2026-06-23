@@ -2,6 +2,9 @@ import { Request, Response, NextFunction } from "express";
 import { AttemptService } from "../services/attempt.service.js";
 import { ResponseHandler } from "../utils/responseHandler.js";
 import { AppError } from "../middleware/errorMiddleware.js";
+import { invalidateCachePattern } from "../utils/redis.js";
+import { broadcastLeaderboardUpdate, broadcastNotification } from "../utils/socket.js";
+import { AnalyticsService } from "../services/analytics.service.js";
 
 export class AttemptController {
   /**
@@ -57,10 +60,31 @@ export class AttemptController {
       const { attemptId } = req.params;
       const { answers, timeSpent } = req.body;
 
-      const attempt = await AttemptService.submitAttempt(attemptId, req.user.id, answers, timeSpent);
+      await AttemptService.submitAttempt(attemptId, req.user.id, answers, timeSpent);
       
       // Load full quiz details for results view feedback
       const results = await AttemptService.getAttemptResult(attemptId, req.user.id);
+
+      // Invalidate analytics and leaderboard cache
+      await invalidateCachePattern("leaderboard:*");
+
+      try {
+        // Broadcast the real-time leaderboard update for this quiz
+        const quizIdStr = results.attempt.quizId?.toString() || results.attempt.quiz?._id?.toString() || "";
+        if (quizIdStr) {
+          const updatedQuizLeaderboard = await AnalyticsService.getQuizLeaderboard(quizIdStr);
+          broadcastLeaderboardUpdate(quizIdStr, updatedQuizLeaderboard);
+        }
+
+        // Broadcast a platform notification milestone
+        broadcastNotification(
+          "New Quiz Completed! 🏆",
+          `${req.user.name || "A player"} scored ${results.attempt.percentage}% on "${results.quiz.title}"!`,
+          "success"
+        );
+      } catch (err: any) {
+        console.warn("[SOCKET] Failed to broadcast attempt update:", err.message);
+      }
       
       ResponseHandler.success(res, "Assessment submitted and scored successfully.", results);
     } catch (error) {

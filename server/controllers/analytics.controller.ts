@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { AnalyticsService } from "../services/analytics.service.js";
 import { ResponseHandler } from "../utils/responseHandler.js";
+import { getOrSetCache } from "../utils/redis.js";
 
 export class AnalyticsController {
   /**
@@ -9,7 +10,12 @@ export class AnalyticsController {
   static async getGlobalLeaderboard(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
-      const leaderboard = await AnalyticsService.getGlobalLeaderboard(limit);
+      
+      const cacheKey = `leaderboard:global:${limit}`;
+      const leaderboard = await getOrSetCache(cacheKey, async () => {
+        return AnalyticsService.getGlobalLeaderboard(limit);
+      }, 60); // cache for 1 minute
+
       ResponseHandler.success(res, "Global leaderboard retrieved successfully", leaderboard);
     } catch (error) {
       next(error);
@@ -26,7 +32,12 @@ export class AnalyticsController {
         res.status(400).json({ success: false, message: "quizId parameter is required" });
         return;
       }
-      const data = await AnalyticsService.getQuizLeaderboard(quizId);
+
+      const cacheKey = `leaderboard:quiz:${quizId}`;
+      const data = await getOrSetCache(cacheKey, async () => {
+        return AnalyticsService.getQuizLeaderboard(quizId);
+      }, 60); // cache for 1 minute
+
       ResponseHandler.success(res, "Quiz ranking leaderboard retrieved successfully", data);
     } catch (error) {
       next(error);

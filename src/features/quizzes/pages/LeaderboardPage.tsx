@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -6,6 +6,7 @@ import {
   useGetQuizLeaderboardQuery,
 } from "../services/analyticsApiSlice.js";
 import { useGetQuizzesQuery } from "../services/quizApiSlice.js";
+import { useSocket } from "../../../context/SocketContext.js";
 import {
   Trophy,
   Search,
@@ -24,12 +25,31 @@ export const LeaderboardPage: React.FC = () => {
   const [selectedQuizId, setSelectedQuizId] = useState<string>("");
   const [globalSearch, setGlobalSearch] = useState("");
   const [quizSearch, setQuizSearch] = useState("");
+  const { socket } = useSocket();
 
   // Queries
-  const { data: globalResponse, isLoading: isGlobalLoading } = useGetGlobalLeaderboardQuery();
+  const { data: globalResponse, isLoading: isGlobalLoading, refetch: refetchGlobal } = useGetGlobalLeaderboardQuery();
   const { data: quizzesResponse } = useGetQuizzesQuery({ limit: 100 });
-  const { data: quizLeaderboardResponse, isLoading: isQuizLeaderboardLoading } =
+  const { data: quizLeaderboardResponse, isLoading: isQuizLeaderboardLoading, refetch: refetchQuiz } =
     useGetQuizLeaderboardQuery(selectedQuizId, { skip: !selectedQuizId });
+
+  // Handle live WebSocket leaderboard update event
+  useEffect(() => {
+    if (!socket) return;
+
+    const onLeaderboardUpdate = (data: { quizId: string }) => {
+      console.log(`[SOCKET] Leaderboard update received for quiz: ${data.quizId}`);
+      refetchGlobal();
+      if (selectedQuizId && data.quizId === selectedQuizId) {
+        refetchQuiz();
+      }
+    };
+
+    socket.on("leaderboard_update", onLeaderboardUpdate);
+    return () => {
+      socket.off("leaderboard_update", onLeaderboardUpdate);
+    };
+  }, [socket, selectedQuizId, refetchGlobal, refetchQuiz]);
 
   const globalLeaderboard = globalResponse?.data || [];
   const quizzes = quizzesResponse?.data?.filter((q) => q.isPublished) || [];
