@@ -2,12 +2,60 @@ import mongoose from "mongoose";
 import { Attempt } from "../models/Attempt.js";
 import { User } from "../models/User.js";
 import { Quiz } from "../models/Quiz.js";
+import { isMongoConnected } from "../config/db.js";
+import { mockAttempts, mockUsers, mockQuizzes } from "./fallbackStore.js";
 
 export class AnalyticsRepository {
   /**
    * Aggregate global leaderboard of top performers
    */
   static async getGlobalLeaderboard(limit: number = 20): Promise<any[]> {
+    if (!isMongoConnected) {
+      const completed = mockAttempts.filter(x => x.status === "COMPLETED");
+      const grouped: { [userId: string]: any } = {};
+
+      for (const att of completed) {
+        const uId = att.userId?.toString() || att.user?.toString();
+        if (!uId) continue;
+        if (!grouped[uId]) {
+          grouped[uId] = {
+            _id: uId,
+            totalScore: 0,
+            totalPercentage: 0,
+            quizzesAttempted: 0,
+            totalTimeSpent: 0,
+          };
+        }
+        grouped[uId].totalScore += att.score || 0;
+        grouped[uId].totalPercentage += att.percentage || 0;
+        grouped[uId].quizzesAttempted += 1;
+        grouped[uId].totalTimeSpent += att.timeTaken || 0;
+      }
+
+      const list = Object.values(grouped).map(g => {
+        const user = mockUsers.find(u => u._id === g._id) || { name: "Alex Trivia Champ", email: "player@quiz.com", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150" };
+        return {
+          _id: g._id,
+          totalScore: g.totalScore,
+          averagePercentage: g.quizzesAttempted > 0 ? Math.round((g.totalPercentage / g.quizzesAttempted) * 100) / 100 : 0,
+          quizzesAttempted: g.quizzesAttempted,
+          totalTimeSpent: g.totalTimeSpent,
+          name: user.name,
+          email: user.email,
+          avatar: user.avatar || "",
+        };
+      });
+
+      list.sort((a, b) => {
+        if (b.totalScore !== a.totalScore) {
+          return b.totalScore - a.totalScore;
+        }
+        return a.totalTimeSpent - b.totalTimeSpent;
+      });
+
+      return list.slice(0, limit);
+    }
+
     return Attempt.aggregate([
       { $match: { status: "COMPLETED" } },
       {
@@ -49,6 +97,37 @@ export class AnalyticsRepository {
    * Aggregate completed attempts for a specific quiz for its scoreboard ranking
    */
   static async getQuizLeaderboard(quizId: string): Promise<any[]> {
+    if (!isMongoConnected) {
+      const completed = mockAttempts.filter(x => 
+        ((x.quizId && x.quizId.toString() === quizId.toString()) || (x.quiz && x.quiz.toString() === quizId.toString())) &&
+        x.status === "COMPLETED"
+      );
+
+      const list = completed.map(att => {
+        const user = mockUsers.find(u => u._id === att.userId) || { name: "User", email: "user@quiz.com", avatar: "" };
+        return {
+          _id: att._id,
+          score: att.score,
+          percentage: att.percentage,
+          rank: att.rank,
+          timeTaken: att.timeTaken,
+          completedAt: att.completedAt || att.updatedAt,
+          name: user.name,
+          email: user.email,
+          avatar: user.avatar || "",
+        };
+      });
+
+      list.sort((a, b) => {
+        if (b.score !== a.score) {
+          return b.score - a.score;
+        }
+        return a.timeTaken - b.timeTaken;
+      });
+
+      return list;
+    }
+
     const qId = new mongoose.Types.ObjectId(quizId);
     return Attempt.aggregate([
       {
@@ -87,6 +166,16 @@ export class AnalyticsRepository {
    * Get total quizzes stats
    */
   static async getQuizCounts(): Promise<{ total: number; published: number; draft: number }> {
+    if (!isMongoConnected) {
+      const total = mockQuizzes.length;
+      const published = mockQuizzes.filter(q => q.isPublished).length;
+      return {
+        total,
+        published,
+        draft: total - published,
+      };
+    }
+
     const total = await Quiz.countDocuments();
     const published = await Quiz.countDocuments({ isPublished: true });
     return {
@@ -100,6 +189,57 @@ export class AnalyticsRepository {
    * Aggregate attempt stats (total, completed, started, average score, percentage)
    */
   static async getAttemptOverviewStats(): Promise<any> {
+    if (!isMongoConnected) {
+      const totalAttempts = mockAttempts.length;
+      const completed = mockAttempts.filter(x => x.status === "COMPLETED");
+      const startedCount = mockAttempts.filter(x => x.status === "STARTED").length;
+      
+      let sumScore = 0;
+      let sumPercentage = 0;
+      for (const c of completed) {
+        sumScore += c.score || 0;
+        sumPercentage += c.percentage || 0;
+      }
+
+      const catGroups: { [cat: string]: any } = {};
+      for (const att of mockAttempts) {
+        const q = mockQuizzes.find(x => x._id === att.quizId) || { category: "General" };
+        const category = q.category || "General";
+        if (!catGroups[category]) {
+          catGroups[category] = {
+            category,
+            attemptsCount: 0,
+            completedCount: 0,
+            sumScore: 0,
+            sumPercentage: 0
+          };
+        }
+        catGroups[category].attemptsCount += 1;
+        if (att.status === "COMPLETED") {
+          catGroups[category].completedCount += 1;
+          catGroups[category].sumScore += att.score || 0;
+          catGroups[category].sumPercentage += att.percentage || 0;
+        }
+      }
+
+      const byCategory = Object.values(catGroups).map((cg: any) => ({
+        category: cg.category,
+        attemptsCount: cg.attemptsCount,
+        completedCount: cg.completedCount,
+        avgScore: cg.completedCount > 0 ? Math.round((cg.sumScore / cg.completedCount) * 100) / 100 : 0,
+        avgPercentage: cg.completedCount > 0 ? Math.round((cg.sumPercentage / cg.completedCount) * 100) / 100 : 0
+      }));
+
+      return {
+        totalAttempts,
+        completedCount: completed.length,
+        startedCount,
+        averageScore: completed.length > 0 ? Math.round((sumScore / completed.length) * 100) / 100 : 0,
+        averagePercentage: completed.length > 0 ? Math.round((sumPercentage / completed.length) * 100) / 100 : 0,
+        byCategory
+      };
+    }
+
     const stats = await Attempt.aggregate([
       {
         $facet: {
@@ -184,6 +324,19 @@ export class AnalyticsRepository {
    * Aggregate User registration growth trend (over last 12 months)
    */
   static async getUserGrowthTrend(): Promise<any[]> {
+    if (!isMongoConnected) {
+      const groups: { [month: string]: number } = {};
+      for (const u of mockUsers) {
+        const d = u.createdAt instanceof Date ? u.createdAt : new Date(u.createdAt);
+        const yyyymm = d.toISOString().slice(0, 7);
+        groups[yyyymm] = (groups[yyyymm] || 0) + 1;
+      }
+      return Object.keys(groups).sort().map(month => ({
+        month,
+        users: groups[month]
+      }));
+    }
+
     return User.aggregate([
       {
         $group: {
@@ -206,6 +359,45 @@ export class AnalyticsRepository {
    * Aggregate Performance Trends & Attempt frequency (by date) over last 30 days
    */
   static async getPerformanceTrends(): Promise<any[]> {
+    if (!isMongoConnected) {
+      const limitDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const recent = mockAttempts.filter(x => {
+        const d = x.createdAt instanceof Date ? x.createdAt : new Date(x.createdAt);
+        return d >= limitDate;
+      });
+
+      const groups: { [date: string]: any } = {};
+      for (const att of recent) {
+        const d = att.createdAt instanceof Date ? att.createdAt : new Date(att.createdAt);
+        const yyyymmdd = d.toISOString().slice(0, 10);
+        if (!groups[yyyymmdd]) {
+          groups[yyyymmdd] = {
+            date: yyyymmdd,
+            attemptsCount: 0,
+            completedCount: 0,
+            sumScore: 0,
+            sumPercentage: 0
+          };
+        }
+        groups[yyyymmdd].attemptsCount += 1;
+        if (att.status === "COMPLETED") {
+          groups[yyyymmdd].completedCount += 1;
+          groups[yyyymmdd].sumScore += att.score || 0;
+          groups[yyyymmdd].sumPercentage += att.percentage || 0;
+        }
+      }
+
+      return Object.keys(groups).sort().map(date => {
+        const g = groups[date];
+        return {
+          date,
+          attemptsCount: g.attemptsCount,
+          avgScore: g.completedCount > 0 ? Math.round((g.sumScore / g.completedCount) * 100) / 100 : 0,
+          avgPercentage: g.completedCount > 0 ? Math.round((g.sumPercentage / g.completedCount) * 100) / 100 : 0
+        };
+      });
+    }
+
     return Attempt.aggregate([
       {
         $match: {
@@ -243,6 +435,76 @@ export class AnalyticsRepository {
    * Aggregate a specific user's performance metrics
    */
   static async getUserAnalytics(userId: string): Promise<any> {
+    if (!isMongoConnected) {
+      const uId = userId.toString();
+      const userAtts = mockAttempts.filter(x => 
+        (x.userId && x.userId.toString() === uId) || 
+        (x.user && x.user.toString() === uId)
+      );
+
+      const completed = userAtts.filter(x => x.status === "COMPLETED");
+      
+      let sumScore = 0;
+      let sumPercentage = 0;
+      let highestScore = 0;
+      let totalTimeSpent = 0;
+
+      for (const c of completed) {
+        sumScore += c.score || 0;
+        sumPercentage += c.percentage || 0;
+        if ((c.score || 0) > highestScore) {
+          highestScore = c.score;
+        }
+        totalTimeSpent += c.timeTaken || 0;
+      }
+
+      const quizGroups: { [qId: string]: any } = {};
+      for (const att of userAtts) {
+        const qId = att.quizId?.toString() || att.quiz?.toString();
+        if (!qId) continue;
+        if (!quizGroups[qId]) {
+          const qDetails = mockQuizzes.find(x => x._id === qId) || { title: "Deleted Quiz", category: "General" };
+          quizGroups[qId] = {
+            _id: qId,
+            quizTitle: qDetails.title,
+            category: qDetails.category,
+            attemptsCount: 0,
+            bestScore: 0,
+            bestPercentage: 0
+          };
+        }
+        quizGroups[qId].attemptsCount += 1;
+        if (att.status === "COMPLETED") {
+          if (att.score > quizGroups[qId].bestScore) {
+            quizGroups[qId].bestScore = att.score;
+          }
+          if (att.percentage > quizGroups[qId].bestPercentage) {
+            quizGroups[qId].bestPercentage = att.percentage;
+          }
+        }
+      }
+
+      const trends = completed.slice(0, 10).map(att => {
+        const d = att.createdAt instanceof Date ? att.createdAt : new Date(att.createdAt);
+        return {
+          date: d.toISOString().slice(5, 10).replace("-", "/"),
+          score: att.score,
+          percentage: att.percentage
+        };
+      });
+
+      return {
+        totalAttempts: userAtts.length,
+        completedCount: completed.length,
+        averageScore: completed.length > 0 ? Math.round((sumScore / completed.length) * 100) / 100 : 0,
+        averagePercentage: completed.length > 0 ? Math.round((sumPercentage / completed.length) * 100) / 100 : 0,
+        highestScore,
+        totalTimeSpent,
+        byQuiz: Object.values(quizGroups),
+        trends
+      };
+    }
+
     const uId = new mongoose.Types.ObjectId(userId);
     const userAttempts = await Attempt.aggregate([
       {
