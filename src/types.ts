@@ -26,3 +26,38 @@ export interface AuthState {
   isAuthenticated: boolean;
   loading: boolean;
 }
+
+export enum QuizDifficulty {
+  EASY = "EASY",
+  MEDIUM = "MEDIUM",
+  HARD = "HARD",
+}
+
+export interface Question {
+  question: string;
+  options: string[];
+  correctAnswer: string;
+  explanation?: string;
+  marks: number;
+}
+
+export interface Quiz {
+  _id: string;
+  title: string;
+  description: string;
+  category: string;
+  difficulty: QuizDifficulty;
+  thumbnail?: string;
+  timeLimit: number; // in minutes
+  negativeMarking: boolean;
+  isPublished: boolean;
+  createdBy: {
+    _id: string;
+    name: string;
+    email: string;
+  };
+  questions: Question[];
+  createdAt: string;
+  updatedAt: string;
+}
+

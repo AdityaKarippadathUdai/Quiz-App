@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { ResponseHandler } from "../utils/responseHandler.js";
 import { authRouter } from "./auth.routes.js";
+import { quizRouter } from "./quiz.routes.js";
 
 export const apiRouter = Router();
 
@@ -14,6 +15,7 @@ apiRouter.get("/health", (req, res) => {
 
 // Register Module Routes
 apiRouter.use("/auth", authRouter);
+apiRouter.use("/quizzes", quizRouter);
 
 // Admin-only metrics health check
 apiRouter.get("/admin/ping", (req, res) => {

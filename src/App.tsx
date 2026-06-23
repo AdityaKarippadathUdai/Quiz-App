@@ -12,6 +12,9 @@ import { ProtectedRoute } from "./features/auth/components/ProtectedRoute.js";
 import { LoginPage } from "./features/auth/pages/LoginPage.js";
 import { RegisterPage } from "./features/auth/pages/RegisterPage.js";
 import { DashboardPage } from "./features/dashboard/pages/DashboardPage.js";
+import { CreateQuizPage } from "./features/quizzes/pages/CreateQuizPage.js";
+import { EditQuizPage } from "./features/quizzes/pages/EditQuizPage.js";
+import { UserRole } from "./types.js";
 
 export default function App() {
   return (
@@ -29,6 +32,26 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <DashboardPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Create Quiz Route */}
+            <Route
+              path="/quizzes/create"
+              element={
+                <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                  <CreateQuizPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Edit Quiz Route */}
+            <Route
+              path="/quizzes/edit/:id"
+              element={
+                <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                  <EditQuizPage />
                 </ProtectedRoute>
               }
             />
