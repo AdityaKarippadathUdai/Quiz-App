@@ -10,7 +10,12 @@ import { apiRouter } from "./routes/index.js";
 const app: Express = express();
 
 // 1. Core Security Middlewares
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    frameguard: false,
+  })
+);
 app.use(
   cors({
     origin: process.env.APP_URL || "*",
