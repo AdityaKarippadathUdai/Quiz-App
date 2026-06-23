@@ -7,7 +7,9 @@ export class AttemptRepository {
   static async findById(id: string): Promise<IAttempt | null> {
     return Attempt.findById(id)
       .populate("user", "name email")
+      .populate("userId", "name email")
       .populate("quiz", "title category difficulty timeLimit negativeMarking questions")
+      .populate("quizId", "title category difficulty timeLimit negativeMarking questions")
       .exec();
   }
 
@@ -34,8 +36,11 @@ export class AttemptRepository {
    * Find attempts made by a specific user
    */
   static async findByUser(userId: string): Promise<IAttempt[]> {
-    return Attempt.find({ user: userId })
+    return Attempt.find({
+      $or: [{ userId: userId }, { user: userId }],
+    })
       .populate("quiz", "title category difficulty timeLimit")
+      .populate("quizId", "title category difficulty timeLimit")
       .sort({ createdAt: -1 })
       .exec();
   }
@@ -45,9 +50,21 @@ export class AttemptRepository {
    */
   static async findActiveAttempt(userId: string, quizId: string): Promise<IAttempt | null> {
     return Attempt.findOne({
-      user: userId,
-      quiz: quizId,
+      $or: [{ userId: userId }, { user: userId }],
+      $or: [{ quizId: quizId }, { quiz: quizId }],
       status: "STARTED",
     }).exec();
+  }
+
+  /**
+   * Find all completed attempts for a quiz sorted by score desc, timeTaken asc
+   */
+  static async findCompletedAttemptsForQuiz(quizId: string): Promise<IAttempt[]> {
+    return Attempt.find({
+      $or: [{ quizId }, { quiz: quizId }],
+      status: "COMPLETED",
+    })
+      .sort({ score: -1, timeTaken: 1 })
+      .exec();
   }
 }

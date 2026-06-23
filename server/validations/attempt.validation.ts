@@ -1,8 +1,10 @@
 import { z } from "zod";
 
 const answerItemSchema = z.object({
-  questionId: z.string({ required_error: "questionId is required" }),
+  questionId: z.string().optional(),
+  questionIndex: z.number().nonnegative().optional(),
   selectedOption: z.string({ required_error: "selectedOption choice is required" }),
+  isCorrect: z.boolean().optional(),
 });
 
 export const saveProgressSchema = z.object({

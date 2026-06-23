@@ -12,8 +12,8 @@ import {
   AlertTriangle,
   FileText,
   Percent,
+  Trophy,
 } from "lucide-react";
-import { QuizDifficulty } from "../../../types.js";
 
 export const QuizResultsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -51,7 +51,9 @@ export const QuizResultsPage: React.FC = () => {
     );
   }
 
-  const scorePercentage = attempt.totalMarks > 0 ? Math.round((attempt.score / attempt.totalMarks) * 100) : 0;
+  const scorePercentage = typeof attempt.percentage === "number" 
+    ? attempt.percentage 
+    : (attempt.totalMarks > 0 ? Math.round((attempt.score / attempt.totalMarks) * 100) : 0);
   
   // Custom feedback messages depending on score percentage
   let feedbackTitle = "Keep learning!";
@@ -117,6 +119,14 @@ export const QuizResultsPage: React.FC = () => {
                 <p className="mt-3 text-sm md:text-base font-medium opacity-90 max-w-xl">
                   {feedbackDescription}
                 </p>
+                {attempt.rank > 0 && (
+                  <div className="mt-4 flex items-center space-x-2">
+                    <Trophy className="h-5 w-5 text-amber-500 animate-bounce" />
+                    <span className="font-sans text-sm font-bold bg-white/40 dark:bg-white/10 px-3 py-1 rounded-lg">
+                      Ranked #{attempt.rank} among all participants
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="mt-6 md:mt-0 flex flex-col items-center justify-center text-center">
@@ -135,7 +145,7 @@ export const QuizResultsPage: React.FC = () => {
           </motion.div>
 
           {/* Detailed Statistics Metrics Grid */}
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
             <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
               <div className="flex items-center justify-between text-gray-400">
                 <span className="font-sans text-xs font-bold uppercase tracking-wider">Final Score</span>
@@ -148,31 +158,41 @@ export const QuizResultsPage: React.FC = () => {
 
             <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
               <div className="flex items-center justify-between text-gray-400">
+                <span className="font-sans text-xs font-bold uppercase tracking-wider">Percentage</span>
+                <Percent className="h-4.5 w-4.5 text-blue-500" />
+              </div>
+              <p className="mt-4 font-sans text-2xl font-extrabold text-blue-600 dark:text-blue-400">
+                {scorePercentage}%
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="flex items-center justify-between text-gray-400">
+                <span className="font-sans text-xs font-bold uppercase tracking-wider">Rank Position</span>
+                <Trophy className="h-4.5 w-4.5 text-amber-500" />
+              </div>
+              <p className="mt-4 font-sans text-2xl font-extrabold text-amber-500">
+                #{attempt.rank || "1"}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="flex items-center justify-between text-gray-400">
                 <span className="font-sans text-xs font-bold uppercase tracking-wider">Correct</span>
                 <CheckCircle className="h-4.5 w-4.5 text-green-500" />
               </div>
               <p className="mt-4 font-sans text-2xl font-extrabold text-green-600 dark:text-green-400">
-                {attempt.correctAnswersCount} <span className="text-sm font-semibold text-gray-400">questions</span>
+                {attempt.correctAnswersCount} <span className="text-xs font-semibold text-gray-400 block">questions</span>
               </p>
             </div>
 
             <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
               <div className="flex items-center justify-between text-gray-400">
-                <span className="font-sans text-xs font-bold uppercase tracking-wider">Incorrect</span>
-                <XCircle className="h-4.5 w-4.5 text-red-500" />
-              </div>
-              <p className="mt-4 font-sans text-2xl font-extrabold text-red-600 dark:text-red-400">
-                {attempt.incorrectAnswersCount} <span className="text-sm font-semibold text-gray-400">questions</span>
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-              <div className="flex items-center justify-between text-gray-400">
-                <span className="font-sans text-xs font-bold uppercase tracking-wider">Time Spent</span>
-                <Clock className="h-4.5 w-4.5 text-amber-500" />
+                <span className="font-sans text-xs font-bold uppercase tracking-wider">Time Taken</span>
+                <Clock className="h-4.5 w-4.5 text-purple-500" />
               </div>
               <p className="mt-4 font-sans text-2xl font-extrabold">
-                {formatSeconds(attempt.timeSpent)} <span className="text-sm font-semibold text-gray-400">duration</span>
+                {formatSeconds(attempt.timeTaken || attempt.timeSpent)}
               </p>
             </div>
           </div>
@@ -186,8 +206,13 @@ export const QuizResultsPage: React.FC = () => {
 
             {quiz.questions.map((question: any, index: number) => {
               const qId = question._id ? question._id.toString() : "";
-              const userAnswer = attempt.answers.find((a) => a.questionId === qId);
-              const isCorrect = userAnswer?.selectedOption?.trim() === question.correctAnswer?.trim();
+              // Resilient match: try matching by questionIndex or questionId
+              const userAnswer = attempt.answers.find(
+                (a: any) => a.questionIndex === index || (qId && a.questionId === qId)
+              );
+              const isCorrect = userAnswer?.isCorrect !== undefined 
+                ? userAnswer.isCorrect 
+                : userAnswer?.selectedOption?.trim() === question.correctAnswer?.trim();
 
               return (
                 <div
@@ -288,7 +313,14 @@ export const QuizResultsPage: React.FC = () => {
           </div>
 
           {/* Quick Bottom Navigation */}
-          <div className="pt-6 flex justify-center">
+          <div className="pt-6 flex justify-center space-x-4">
+            <Link
+              to="/quizzes/history"
+              className="inline-flex items-center space-x-2 rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 px-6 py-4 text-sm font-bold transition dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+            >
+              <TrendingUp className="h-4.5 w-4.5 text-indigo-600 dark:text-indigo-400" />
+              <span>View Attempt History</span>
+            </Link>
             <Link
               to="/"
               className="inline-flex items-center space-x-2 rounded-2xl bg-indigo-600 px-8 py-4 text-sm font-bold text-white shadow-xl shadow-indigo-600/10 hover:bg-indigo-700 transition"

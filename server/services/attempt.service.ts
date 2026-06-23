@@ -23,12 +23,17 @@ export class AttemptService {
     if (!attempt) {
       // Create new attempt
       attempt = await AttemptRepository.create({
+        userId: userId as any,
+        quizId: quizId as any,
         user: userId as any,
         quiz: quizId as any,
         status: AttemptStatus.STARTED,
         answers: [],
+        timeTaken: 0,
         timeSpent: 0,
         score: 0,
+        percentage: 0,
+        rank: 0,
         startedAt: new Date(),
       });
     }
@@ -54,7 +59,7 @@ export class AttemptService {
   static async saveProgress(
     attemptId: string,
     userId: string,
-    answers: { questionId: string; selectedOption: string }[],
+    answers: { questionId?: string; questionIndex: number; selectedOption: string }[],
     timeSpent: number
   ): Promise<IAttempt> {
     const attempt = await AttemptRepository.findById(attemptId);
@@ -62,7 +67,8 @@ export class AttemptService {
       throw new AppError("Quiz attempt not found.", 404, "ATTEMPT_NOT_FOUND");
     }
 
-    if (attempt.user._id.toString() !== userId) {
+    const attemptUser = attempt.userId ? attempt.userId.toString() : attempt.user._id.toString();
+    if (attemptUser !== userId) {
       throw new AppError("You are not authorized to edit this attempt.", 403, "UNAUTHORIZED_ATTEMPT_EDIT");
     }
 
@@ -70,15 +76,30 @@ export class AttemptService {
       throw new AppError("This assessment has already been submitted and finalized.", 400, "ATTEMPT_ALREADY_COMPLETED");
     }
 
+    // Fetch quiz to check isCorrect if needed or just save options
+    const quiz = await QuizRepository.findById(attempt.quizId?.toString() || attempt.quiz?._id?.toString());
+    
     // Update answers format with timestamp
-    const formattedAnswers = answers.map((ans) => ({
-      questionId: ans.questionId,
-      selectedOption: ans.selectedOption,
-      savedAt: new Date(),
-    }));
+    const formattedAnswers = answers.map((ans) => {
+      let isCorrect = false;
+      if (quiz && quiz.questions) {
+        const q = quiz.questions[ans.questionIndex];
+        if (q && q.correctAnswer && ans.selectedOption) {
+          isCorrect = q.correctAnswer.trim() === ans.selectedOption.trim();
+        }
+      }
+      return {
+        questionId: ans.questionId,
+        questionIndex: ans.questionIndex,
+        selectedOption: ans.selectedOption,
+        isCorrect,
+        savedAt: new Date(),
+      };
+    });
 
     const updated = await AttemptRepository.update(attemptId, {
-      answers: formattedAnswers,
+      answers: formattedAnswers as any,
+      timeTaken: timeSpent,
       timeSpent,
     });
 
@@ -95,7 +116,7 @@ export class AttemptService {
   static async submitAttempt(
     attemptId: string,
     userId: string,
-    answers?: { questionId: string; selectedOption: string }[],
+    answers?: { questionId?: string; questionIndex: number; selectedOption: string }[],
     timeSpent?: number
   ): Promise<IAttempt> {
     const attempt = await AttemptRepository.findById(attemptId);
@@ -103,7 +124,8 @@ export class AttemptService {
       throw new AppError("Quiz attempt not found.", 404, "ATTEMPT_NOT_FOUND");
     }
 
-    if (attempt.user._id.toString() !== userId) {
+    const attemptUser = attempt.userId ? attempt.userId.toString() : attempt.user._id.toString();
+    if (attemptUser !== userId) {
       throw new AppError("You are not authorized to submit this attempt.", 403, "UNAUTHORIZED_ATTEMPT_SUBMISSION");
     }
 
@@ -112,23 +134,12 @@ export class AttemptService {
     }
 
     // Save final state if provided in submission request payload
-    let currentAnswers = attempt.answers;
-    let currentTimeSpent = attempt.timeSpent;
-
-    if (answers) {
-      const formattedAnswers = answers.map((ans) => ({
-        questionId: ans.questionId,
-        selectedOption: ans.selectedOption,
-        savedAt: new Date(),
-      }));
-      currentAnswers = formattedAnswers as any;
-    }
-    if (typeof timeSpent === "number") {
-      currentTimeSpent = timeSpent;
-    }
+    let inputAnswers = answers || [];
+    let currentTimeSpent = typeof timeSpent === "number" ? timeSpent : attempt.timeSpent || 0;
 
     // Calculate score, checking against the full Quiz model with answers
-    const quiz = await QuizRepository.findById(attempt.quiz.toString());
+    const quizIdStr = attempt.quizId ? attempt.quizId.toString() : attempt.quiz.toString();
+    const quiz = await QuizRepository.findById(quizIdStr);
     if (!quiz) {
       throw new AppError("Associated quiz not found.", 404, "QUIZ_NOT_FOUND");
     }
@@ -139,24 +150,43 @@ export class AttemptService {
     let totalMarks = 0;
 
     const quizQuestions = quiz.questions;
+    const finalAnswers: any[] = [];
 
-    for (const question of quizQuestions) {
+    // Evaluate answers
+    for (let i = 0; i < quizQuestions.length; i++) {
+      const question = quizQuestions[i];
       const qId = (question as any)._id ? (question as any)._id.toString() : "";
       totalMarks += question.marks;
 
-      const userAns = currentAnswers.find((a) => a.questionId === qId);
+      // Find user response either by questionIndex or questionId
+      const userAns = inputAnswers.length > 0 
+        ? inputAnswers.find((a) => a.questionIndex === i || (a.questionId && a.questionId === qId))
+        : attempt.answers.find((a) => a.questionIndex === i || (a.questionId && a.questionId === qId));
 
-      if (userAns && userAns.selectedOption) {
-        if (userAns.selectedOption.trim() === question.correctAnswer.trim()) {
+      const selectedOption = userAns ? userAns.selectedOption : "";
+      let isCorrect = false;
+
+      if (selectedOption && selectedOption.trim()) {
+        if (selectedOption.trim() === question.correctAnswer.trim()) {
           correctCount++;
           totalScore += question.marks;
+          isCorrect = true;
         } else {
           incorrectCount++;
+          isCorrect = false;
           if (quiz.negativeMarking) {
             totalScore -= 0.25 * question.marks; // 1/4 marks negative penalty
           }
         }
       }
+
+      finalAnswers.push({
+        questionId: qId,
+        questionIndex: i,
+        selectedOption,
+        isCorrect,
+        savedAt: userAns?.savedAt || new Date(),
+      });
     }
 
     // Keep score non-negative
@@ -167,10 +197,16 @@ export class AttemptService {
     // Round score to 2 decimal places
     totalScore = Math.round(totalScore * 100) / 100;
 
-    const updated = await AttemptRepository.update(attemptId, {
-      answers: currentAnswers,
+    // Calculate Percentage
+    const percentage = totalMarks > 0 ? Math.round((totalScore / totalMarks) * 100 * 100) / 100 : 0;
+
+    // Save initial update so it is part of the completed list for ranking
+    const preliminaryUpdate = await AttemptRepository.update(attemptId, {
+      answers: finalAnswers,
+      timeTaken: currentTimeSpent,
       timeSpent: currentTimeSpent,
       score: totalScore,
+      percentage,
       correctAnswersCount: correctCount,
       incorrectAnswersCount: incorrectCount,
       totalMarks,
@@ -178,11 +214,42 @@ export class AttemptService {
       completedAt: new Date(),
     });
 
-    if (!updated) {
+    if (!preliminaryUpdate) {
       throw new AppError("Failed to finalize assessment submission.", 500, "SUBMISSION_FAILED");
     }
 
-    return updated;
+    // GENERATE RANK:
+    // Update and compute ranks for all completed attempts of this specific quiz
+    const completedAttempts = await AttemptRepository.findCompletedAttemptsForQuiz(quizIdStr);
+    
+    // Sort them strictly: highest score first, then lowest timeTaken (faster is better)
+    completedAttempts.sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+      return a.timeTaken - b.timeTaken;
+    });
+
+    // Update ranks in database
+    let assignedRankForCurrent = 0;
+    for (let index = 0; index < completedAttempts.length; index++) {
+      const currentRank = index + 1;
+      const att = completedAttempts[index];
+      
+      // Save rank
+      await AttemptRepository.update(att._id.toString(), { rank: currentRank });
+      if (att._id.toString() === attemptId) {
+        assignedRankForCurrent = currentRank;
+      }
+    }
+
+    // Reload and return the final updated attempt with computed rank
+    const finalCompletedAttempt = await AttemptRepository.findById(attemptId);
+    if (!finalCompletedAttempt) {
+      throw new AppError("Failed to retrieve final ranked attempt.", 500, "SUBMISSION_FAILED");
+    }
+
+    return finalCompletedAttempt;
   }
 
   /**
@@ -194,17 +261,19 @@ export class AttemptService {
       throw new AppError("Quiz attempt not found.", 404, "ATTEMPT_NOT_FOUND");
     }
 
-    if (attempt.user._id.toString() !== userId) {
+    const attemptUser = attempt.userId ? attempt.userId.toString() : attempt.user._id.toString();
+    if (attemptUser !== userId) {
       throw new AppError("You are not authorized to view this result.", 403, "UNAUTHORIZED_VIEW");
     }
 
-    const quiz = await QuizRepository.findById(attempt.quiz._id.toString());
+    const quizIdStr = attempt.quizId ? attempt.quizId.toString() : attempt.quiz._id.toString();
+    const quiz = await QuizRepository.findById(quizIdStr);
     if (!quiz) {
       throw new AppError("Associated quiz not found.", 404, "QUIZ_NOT_FOUND");
     }
 
     if (attempt.status === AttemptStatus.STARTED) {
-      // Strip correct answers & explanations to prevent client-side inspection cheating on reload
+      // Strip correct answers & explanations to prevent cheating
       const quizObj = quiz.toObject ? quiz.toObject() : JSON.parse(JSON.stringify(quiz));
       const sanitizedQuestions = quizObj.questions.map((q: any) => {
         const { correctAnswer, explanation, ...rest } = q;

@@ -17,6 +17,7 @@ import { EditQuizPage } from "./features/quizzes/pages/EditQuizPage.js";
 import { QuizDetailsPage } from "./features/quizzes/pages/QuizDetailsPage.js";
 import { TakeQuizPage } from "./features/quizzes/pages/TakeQuizPage.js";
 import { QuizResultsPage } from "./features/quizzes/pages/QuizResultsPage.js";
+import { AttemptHistoryPage } from "./features/quizzes/pages/AttemptHistoryPage.js";
 import { UserRole } from "./types.js";
 
 export default function App() {
@@ -85,6 +86,16 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <QuizResultsPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Quiz Attempt History Route */}
+            <Route
+              path="/quizzes/history"
+              element={
+                <ProtectedRoute>
+                  <AttemptHistoryPage />
                 </ProtectedRoute>
               }
             />

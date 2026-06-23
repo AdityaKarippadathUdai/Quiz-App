@@ -67,13 +67,17 @@ export enum AttemptStatus {
 }
 
 export interface Answer {
-  questionId: string;
+  questionId?: string;
+  questionIndex: number;
   selectedOption: string;
+  isCorrect?: boolean;
   savedAt?: string;
 }
 
 export interface Attempt {
   _id: string;
+  userId: string;
+  quizId: string;
   user: {
     _id: string;
     name: string;
@@ -82,14 +86,16 @@ export interface Attempt {
   quiz: Quiz | string;
   answers: Answer[];
   score: number;
+  percentage: number;
+  rank: number;
+  timeTaken: number; // in seconds
+  timeSpent: number; // in seconds
   correctAnswersCount: number;
   incorrectAnswersCount: number;
   totalMarks: number;
-  timeSpent: number; // in seconds
   status: AttemptStatus;
   startedAt: string;
   completedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
-

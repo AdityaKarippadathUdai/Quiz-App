@@ -368,9 +368,18 @@ export const DashboardPage: React.FC = () => {
           {/* Assessment Activity History */}
           {!isAdmin && attempts.length > 0 && (
             <div className="mt-12 space-y-6">
-              <div className="flex items-center space-x-2">
-                <TrendingUp className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-                <h2 className="font-sans text-xl font-bold tracking-tight">Your Recent Assessment History</h2>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <TrendingUp className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                  <h2 className="font-sans text-xl font-bold tracking-tight">Your Recent Assessment History</h2>
+                </div>
+                <button
+                  onClick={() => navigate("/quizzes/history")}
+                  className="inline-flex items-center space-x-1 text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline dark:text-indigo-400 dark:hover:text-indigo-300"
+                >
+                  <span>View Full History ({attempts.length})</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
               </div>
 
               <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white dark:border-zinc-800 dark:bg-zinc-900">

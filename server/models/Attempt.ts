@@ -6,20 +6,27 @@ export enum AttemptStatus {
 }
 
 export interface IAnswer {
-  questionId: string;
+  questionId?: string;
+  questionIndex: number;
   selectedOption: string;
-  savedAt: Date;
+  isCorrect?: boolean;
+  savedAt?: Date;
 }
 
 export interface IAttempt extends Document {
-  user: mongoose.Types.ObjectId;
-  quiz: mongoose.Types.ObjectId;
+  userId: mongoose.Types.ObjectId;
+  quizId: mongoose.Types.ObjectId;
+  user: mongoose.Types.ObjectId; // compatibility alias
+  quiz: mongoose.Types.ObjectId; // compatibility alias
   answers: IAnswer[];
   score: number;
+  percentage: number;
+  rank: number;
+  timeTaken: number; // in seconds
   correctAnswersCount: number;
   incorrectAnswersCount: number;
   totalMarks: number;
-  timeSpent: number; // in seconds
+  timeSpent: number; // compatibility alias
   status: AttemptStatus;
   startedAt: Date;
   completedAt?: Date;
@@ -30,11 +37,18 @@ export interface IAttempt extends Document {
 const AnswerSchema = new Schema<IAnswer>({
   questionId: {
     type: String,
+  },
+  questionIndex: {
+    type: Number,
     required: true,
   },
   selectedOption: {
     type: String,
     required: true,
+  },
+  isCorrect: {
+    type: Boolean,
+    default: false,
   },
   savedAt: {
     type: Date,
@@ -44,6 +58,16 @@ const AnswerSchema = new Schema<IAnswer>({
 
 const AttemptSchema = new Schema<IAttempt>(
   {
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    quizId: {
+      type: Schema.Types.ObjectId,
+      ref: "Quiz",
+      required: true,
+    },
     user: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -60,6 +84,18 @@ const AttemptSchema = new Schema<IAttempt>(
     },
     score: {
       type: Number,
+      default: 0,
+    },
+    percentage: {
+      type: Number,
+      default: 0,
+    },
+    rank: {
+      type: Number,
+      default: 0,
+    },
+    timeTaken: {
+      type: Number, // in seconds
       default: 0,
     },
     correctAnswersCount: {

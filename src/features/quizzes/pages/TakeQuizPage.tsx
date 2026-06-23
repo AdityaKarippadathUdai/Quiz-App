@@ -94,14 +94,22 @@ export const TakeQuizPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [answers, secondsLeft, attempt, quiz]);
 
+  const getAnswersList = (answersMap: Record<string, string>) => {
+    return Object.entries(answersMap).map(([questionId, selectedOption]) => {
+      const qIndex = quiz?.questions.findIndex((q: any) => q._id === questionId) ?? -1;
+      return {
+        questionId,
+        questionIndex: qIndex !== -1 ? qIndex : 0,
+        selectedOption,
+      };
+    });
+  };
+
   const handleSyncProgress = async (answersOverride?: Record<string, string>) => {
     if (!id || !attempt || !quiz || secondsLeft === null) return;
     setSyncState("SAVING");
 
-    const answersList = Object.entries(answersOverride || answers).map(([questionId, selectedOption]) => ({
-      questionId,
-      selectedOption,
-    }));
+    const answersList = getAnswersList(answersOverride || answers);
 
     const totalDuration = quiz.timeLimit * 60;
     const timeSpent = Math.max(0, totalDuration - secondsLeft);
@@ -166,10 +174,7 @@ export const TakeQuizPage: React.FC = () => {
 
     setSyncState("SAVING");
     try {
-      const answersList = Object.entries(answers).map(([questionId, selectedOption]) => ({
-        questionId,
-        selectedOption,
-      }));
+      const answersList = getAnswersList(answers);
 
       await submitAttempt({
         attemptId: id || "",
@@ -195,10 +200,7 @@ export const TakeQuizPage: React.FC = () => {
     if (window.confirm(confirmMsg)) {
       setSyncState("SAVING");
       try {
-        const answersList = Object.entries(answers).map(([questionId, selectedOption]) => ({
-          questionId,
-          selectedOption,
-        }));
+        const answersList = getAnswersList(answers);
 
         const totalDuration = quiz ? quiz.timeLimit * 60 : 0;
         const timeSpent = secondsLeft !== null ? Math.max(0, totalDuration - secondsLeft) : 0;
