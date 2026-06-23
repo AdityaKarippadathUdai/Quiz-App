@@ -1,6 +1,7 @@
 import express, { Express, Request, Response, NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
+import cookieParser from "cookie-parser";
 import { requestLogger } from "./middleware/logger.js";
 import { rateLimiter } from "./middleware/rateLimiter.js";
 import { errorMiddleware, AppError } from "./middleware/errorMiddleware.js";
@@ -21,9 +22,11 @@ app.use(
 // 2. Request parsing
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(cookieParser());
 
 // 3. Logger & Rate Limiting (apply globally to API routes)
 app.use(requestLogger);
+
 app.use("/api", rateLimiter(60000, 150)); // Allow up to 150 requests per minute per IP
 
 // 4. API Routes with clean V1 versioning
