@@ -20,6 +20,7 @@ import { QuizResultsPage } from "./features/quizzes/pages/QuizResultsPage.js";
 import { AttemptHistoryPage } from "./features/quizzes/pages/AttemptHistoryPage.js";
 import { LeaderboardPage } from "./features/quizzes/pages/LeaderboardPage.js";
 import { AnalyticsPage } from "./features/quizzes/pages/AnalyticsPage.js";
+import { QuizPreviewPage } from "./features/quizzes/pages/QuizPreviewPage.js";
 import { UserRole } from "./types.js";
 
 export default function App() {
@@ -48,6 +49,16 @@ export default function App() {
               element={
                 <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
                   <CreateQuizPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* AI Quiz Preview/Staging Route */}
+            <Route
+              path="/quizzes/preview"
+              element={
+                <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                  <QuizPreviewPage />
                 </ProtectedRoute>
               }
             />

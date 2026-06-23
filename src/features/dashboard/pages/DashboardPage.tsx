@@ -26,13 +26,16 @@ import {
   TrendingUp,
   Trophy,
   BarChart2,
+  Sparkles,
 } from "lucide-react";
 import { UserRole, QuizDifficulty } from "../../../types.js";
+import { AIQuizGeneratorModal } from "../../quizzes/components/AIQuizGeneratorModal.js";
 
 export const DashboardPage: React.FC = () => {
   const { user, logoutUser, toggleTheme, theme } = useAuth();
   const navigate = useNavigate();
 
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
@@ -152,14 +155,24 @@ export const DashboardPage: React.FC = () => {
                   <span>Analytics</span>
                 </Link>
                 {isAdmin && (
-                  <Link
-                    to="/quizzes/create"
-                    id="create-quiz-btn"
-                    className="flex items-center space-x-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-600/10 hover:bg-indigo-700 transition"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>Create Quiz</span>
-                  </Link>
+                  <>
+                    <button
+                      onClick={() => setIsAiModalOpen(true)}
+                      id="generate-ai-quiz-btn"
+                      className="flex items-center space-x-2 rounded-xl border border-dashed border-indigo-300 bg-indigo-50/50 hover:bg-indigo-50 px-5 py-3 text-sm font-semibold text-indigo-700 transition dark:border-indigo-800/80 dark:bg-indigo-950/20 dark:text-indigo-400 dark:hover:bg-indigo-950/40 cursor-pointer"
+                    >
+                      <Sparkles className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                      <span>AI Generator</span>
+                    </button>
+                    <Link
+                      to="/quizzes/create"
+                      id="create-quiz-btn"
+                      className="flex items-center space-x-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-600/10 hover:bg-indigo-700 transition"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span>Create Quiz</span>
+                    </Link>
+                  </>
                 )}
               </div>
             </div>
@@ -465,6 +478,12 @@ export const DashboardPage: React.FC = () => {
           )}
         </div>
       </main>
+
+      {/* AI Quiz Generator Modal triggerable by Admins */}
+      <AIQuizGeneratorModal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+      />
     </div>
   );
 };
